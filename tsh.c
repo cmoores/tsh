@@ -4,7 +4,7 @@
  * <Put your name and UD username here>
 
     Christopher Moores || cmoores
-    Patrick Houston || phoust
+    Chris Clayton || ?
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -174,7 +174,11 @@ void eval(char *cmdline)
     char buf[MAXLINE];
     int bg;
     pid_t pid;
-    // struct job_t jb;
+    sigset_t mask;
+
+    sigemptyset(&mask);                                                         
+    sigaddset(&mask, SIGCHLD); 
+
 
     strcpy(buf, cmdline);
     bg = parseline(buf, argv); // if 1, then FG job
@@ -196,8 +200,7 @@ void eval(char *cmdline)
     // }
 
     if(!builtin_cmd(argv)){
-        pid = fork();
-        addjob(jobs, pid, (bg+1), cmdline);
+        sigprocmask(SIG_BLOCK, &mask, NULL);
         // if(fgpid(jobs) == 0){
         //     addjob(jobs, pid, (bg+1), cmdline);
         // }
@@ -210,7 +213,9 @@ void eval(char *cmdline)
         //     }
         // }
         
-        if(pid == 0){
+        if((pid = fork()) == 0){
+            sigprocmask(SIG_UNBLOCK, &mask, NULL);                              
+            setpgid(0,0); 
             if(execve(argv[0], argv, environ) < 0){
                 printf("%s: Command not found. \n", argv[0]);
                 exit(0);
@@ -218,12 +223,18 @@ void eval(char *cmdline)
         }
 
         if(!bg){
-            int status;
-            if(waitpid(pid, &status, 0) <0)
-                unix_error("waitfg: waitpid error");
+            addjob(jobs, pid, (bg+1), cmdline);
+            // int status;
+            // if(waitpid(pid, &status, 0) <0)
+            //     unix_error("waitfg: waitpid error");
+            sigprocmask(SIG_UNBLOCK, &mask, NULL); 
+            waitfg(fgpid(jobs));
+            printf("%s\n", "breaks out of wait!!!");
 
         }
         else{
+            addjob(jobs, pid, (bg+1), cmdline);
+            sigprocmask(SIG_UNBLOCK, &mask, NULL); 
             printf("[%d] (%d) %s", getjobpid(jobs, pid)->jid, pid, cmdline);
         }
     }
@@ -325,6 +336,28 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
+    struct job_t* job;
+
+    if(argv[1][0] == '%'){
+        job = getjobjid(jobs, atoi(&argv[1][1]));
+    }
+    else{
+        job = getjobpid(jobs, atoi(argv[1]));
+    }
+
+    //Sends SGICONT to job
+    kill(-job->pid, SIGCONT);
+
+    if (strcmp(argv[0], "bg")){
+        job->state = BG;
+        //prompt regarding change of process state
+    }
+
+    else {
+        job->state = FG;
+        waitfg(job->pid);
+    }
+
 
     // printf("%s\n", "do_bgfb was called");
     return;
@@ -335,6 +368,10 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
+    while((fgpid(jobs) == pid) && getjobpid(jobs, fgpid(jobs))->state == FG){
+        sleep(1);
+        printf("%s\n", "waiting...");
+    }
     return;
 }
 
@@ -345,12 +382,16 @@ void waitfg(pid_t pid)
 /* 
  * sigchld_handler - The kernel sends a SIGCHLD to the shell whenever
  *     a child job terminates (becomes a zombie), or stops because it
- *     received a SIGSTOP or SIGTSTP signal. The handler reaps all
+ *     received a SIGSTOP o SIGTSTP signal. The handler reaps all
  *     available zombie children, but doesn't wait for any other
  *     currently running children to terminate.  
  */
 void sigchld_handler(int sig) 
 {
+    pid_t child_pid;
+    int child_jid;
+    int status;
+
     return;
 }
 
