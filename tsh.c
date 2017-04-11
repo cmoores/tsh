@@ -4,7 +4,7 @@
  * <Put your name and UD username here>
 
     Christopher Moores || cmoores
-    Chris Clayton || ?
+    Chris Clayton || chrisbme
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -229,7 +229,7 @@ void eval(char *cmdline)
             //     unix_error("waitfg: waitpid error");
             sigprocmask(SIG_UNBLOCK, &mask, NULL); 
             waitfg(fgpid(jobs));
-            printf("%s\n", "breaks out of wait!!!");
+            // printf("%s\n", "breaks out of wait!!!");
 
         }
         else{
@@ -370,7 +370,7 @@ void waitfg(pid_t pid)
 {
     while((fgpid(jobs) == pid) && getjobpid(jobs, fgpid(jobs))->state == FG){
         sleep(1);
-        printf("%s\n", "waiting...");
+        // printf("%s\n", "waiting...");
     }
     return;
 }
@@ -389,8 +389,25 @@ void waitfg(pid_t pid)
 void sigchld_handler(int sig) 
 {
     pid_t child_pid;
-    int child_jid;
+    // int child_jid;
     int status;
+
+    while((child_pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0){
+        // handle child doesnt exist error
+
+        if(WIFEXITED(status)){
+            // printf("Job [%d] (%d) exited by signal %d\n", pid2jid(child_pid), child_pid, WIFEXITED(status));
+            deletejob(jobs, child_pid);
+        }
+        if(WIFSTOPPED(status)){
+            printf("Job [%d] (%d) stopped by signal %d\n", pid2jid(child_pid), child_pid, WSTOPSIG(status));
+            getjobpid(jobs, child_pid)->state= ST;
+        }
+        if(WIFSIGNALED(status)){
+            printf("Job [%d] (%d) terminated by signal %d\n", pid2jid(child_pid), child_pid, WTERMSIG(status));
+            deletejob(jobs, child_pid);
+        }
+    }    
 
     return;
 }
@@ -402,6 +419,9 @@ void sigchld_handler(int sig)
  */
 void sigint_handler(int sig) 
 {
+    if(fgpid(jobs) > 0){
+        kill(-fgpid(jobs), SIGINT);
+    }
     return;
 }
 
@@ -412,6 +432,9 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
+    if(fgpid(jobs) > 0){
+        kill(-fgpid(jobs), SIGTSTP);
+    }
     return;
 }
 
