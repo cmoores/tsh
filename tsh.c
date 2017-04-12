@@ -338,11 +338,78 @@ void do_bgfg(char **argv)
 {
     struct job_t* job;
 
-    if(argv[1][0] == '%'){
+    /* normally would use helper function to test for invalid user input */
+    /* if user typed % (requested job based on jid) */
+    //if (argv[0][2] == '\0'){
+    if (argv[1] == NULL){
+        printf("%s command requires PID or %%jobid argument\n", argv[0]);
+        return;
+    }
+    else if(argv[1][0] == '%'){
+        /* for every char after %, make sure char is a number */
+        /*
+        int isnum;
+        String arg = "";
+        strcpy(arg, argv[1]);
+        printf("%d\n", sizeof(arg));
+        for (int x = 0; x < sizeof(argv[1])+1; x++){
+            isnum = (!isdigit(argv[1][x+1]));
+            printf("reached for loop");
+        */
+            /* if char is not a number, tell user invalid input and return */
+        /*
+            if (!isnum){
+                printf("%s: argument must be a pid or %%jobid", argv[0]);
+                return;
+            }
+        }
+        */
+        /* if first char after % is not a number inform user and return */
+        //printf("user has entered %% and pid\n");
+        if (!isdigit(argv[1][1])){
+            printf("%s: argument must be a PID or %%jobid\n", argv[0]);
+            return;
+        }
+        /* get job from jid */
         job = getjobjid(jobs, atoi(&argv[1][1]));
+        /* if job does not exist in jobs, inform user and return */
+        if (job == NULL){
+            printf("%s: no such job\n", argv[1]);
+            return;
+        }
+
     }
     else{
+        /*
+        int isnum;
+        */
+        /* for every char after fg */
+        /*
+        for (int x = 0; x < sizeof(argv[1])+1; x++){
+            isnum = (!isdigit(argv[1][x+1]));
+        */
+            /* if char is not a number, tell user invalid input and return */
+        /*
+            printf("reached for loop");
+            if (!isnum){
+                printf("%s: argument must be a pid or %%jobid", argv[0]);
+                return;
+            }
+        }
+        */
+        /* if first char of argument after fg is not a number inform user and return*/
+        //printf("user has entered with jid\n");
+        if (!isdigit(argv[1][0])){
+            printf("%s: argument must be a PID or %%jobid\n", argv[0]);
+            return;
+        }
+        /* get job from pid */
         job = getjobpid(jobs, atoi(argv[1]));
+        /* if job does not exist, inform user and return */
+        if (job == NULL){
+            printf("(%s): no such process\n", argv[1]);
+            return;
+        }
     }
 
     kill(-job->pid, SIGCONT);
@@ -357,8 +424,6 @@ void do_bgfg(char **argv)
         job->state = FG;
         waitfg(job->pid);
     }
-
-
     // printf("%s\n", "do_bgfb was called");
     return;
 }
