@@ -345,12 +345,12 @@ void do_bgfg(char **argv)
         job = getjobpid(jobs, atoi(argv[1]));
     }
 
-    //Sends SGICONT to job
     kill(-job->pid, SIGCONT);
 
-    if (strcmp(argv[0], "bg")){
+    if (!strcmp(argv[0], "bg")){
         job->state = BG;
         //prompt regarding change of process state
+        printf("[%d] (%d) %s", job->jid, job->pid, job->cmdline);
     }
 
     else {
